@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'dart:math' as math;
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
@@ -22,7 +23,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
 
-  late TextEditingController _chatNameController;
+  final TextEditingController _chatNameController = TextEditingController();
 
   final Color _toastBackgroundColor = const Color(0xff2b2b2b);
   final Color _toastTextColor = const Color(0xffffffff);
@@ -50,21 +51,21 @@ class _MyHomePageState extends State<MyHomePage> {
 
     AlertDialog(
       title: const Text('Add a new class'),
-      content: TextField(
+      content: const TextField(
         //controller: textController,
         autofocus: true,
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
             hintText: "Enter the name of the class."),
       ),
       actions: [
         TextButton(
-          child: Text('Cancel'),
+          child: const Text('Cancel'),
           onPressed: () {
             Navigator.pop(context);
           },
         ),
         TextButton(
-          child: Text('Add'),
+          child: const Text('Add'),
           onPressed: () {
             setState((){
               //_items.add(textController.text)  // 👈 add list item to the list
@@ -88,14 +89,41 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  Color _randomChatAvatarColor() {
+    return Color((math.Random().nextDouble() * 0xFFFFFF).toInt()).withOpacity(1.0);
+  }
+  
+  void _chatItemClick(int chatIndex) {
+    Fluttertoast.showToast(
+        msg: "Selected chat $chatIndex",
+        toastLength: Toast.LENGTH_LONG,
+        gravity: ToastGravity.BOTTOM,
+        // Also possible "TOP" and "CENTER"
+        backgroundColor: _toastBackgroundColor,
+        textColor: _toastTextColor
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
+
+    List<Widget> chatWidgets = [
+
+    ];
+
+    for (int i = 0; i < 20; i++) {
+      Color chatAvatarColor = _randomChatAvatarColor();
+
+      chatWidgets.add(
+          ChatListItem(
+            chatIndex: i,
+            chatContactName: "Test Chat ${i + 1}",
+            chatAvatarColor: chatAvatarColor,
+            clickCallback: _chatItemClick,
+          )
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         // TRY THIS: Try changing the color here to a specific color (to
@@ -106,49 +134,49 @@ class _MyHomePageState extends State<MyHomePage> {
         // the App.build method, and use it to set our appbar title.
         title: Text(widget.title),
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: <Widget>[
-            const TextField(
-              decoration: InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: 'Поиск',
-              ),
+      body: Column(
+        // Column is also a layout widget. It takes a list of children and
+        // arranges them vertically. By default, it sizes itself to fit its
+        // children horizontally, and tries to be as tall as its parent.
+        //
+        // Column has various properties to control how it sizes itself and
+        // how it positions its children. Here we use mainAxisAlignment to
+        // center the children vertically; the main axis here is the vertical
+        // axis because Columns are vertical (the cross axis would be
+        // horizontal).
+        //
+        // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
+        // action in the IDE, or press "p" in the console), to see the
+        // wireframe for each widget.
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          const TextField(
+            decoration: InputDecoration(
+              border: OutlineInputBorder(),
+              hintText: 'Поиск',
             ),
+          ),
 
-            const Cell(
-
+          Expanded(child: SingleChildScrollView(
+            child: Column(
+              // Column is also a layout widget. It takes a list of children and
+              // arranges them vertically. By default, it sizes itself to fit its
+              // children horizontally, and tries to be as tall as its parent.
+              //
+              // Column has various properties to control how it sizes itself and
+              // how it positions its children. Here we use mainAxisAlignment to
+              // center the children vertically; the main axis here is the vertical
+              // axis because Columns are vertical (the cross axis would be
+              // horizontal).
+              //
+              // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
+              // action in the IDE, or press "p" in the console), to see the
+              // wireframe for each widget.
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: chatWidgets,
             ),
-
-            const Cell(
-
-            ),
-
-            const Cell(
-
-            ),
-
-            const Cell(
-
-            ),
-          ],
-        ),
+          ))
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
@@ -165,13 +193,13 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             actions: [
               TextButton(
-                child: Text('Отмена'),
+                child: const Text('Отмена'),
                 onPressed: () {
                   Navigator.pop(context);
                 },
               ),
               TextButton(
-                child: Text('Добавить'),
+                child: const Text('Добавить'),
                 onPressed: () {
                   appendNewChat(_chatNameController.text);
                   Navigator.pop(context);
@@ -196,15 +224,23 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
-class Cell extends StatefulWidget {
-  const Cell({super.key});
+class ChatListItem extends StatefulWidget {
+  const ChatListItem({
+    super.key,
+    required this.chatIndex, required this.chatContactName,
+    required this.chatAvatarColor, required this.clickCallback
+  });
+
+  final int chatIndex;
+  final String chatContactName;
+  final Color chatAvatarColor;
+  final void Function(int) clickCallback;
 
   @override
-  State<StatefulWidget> createState() => _CellState();
+  State<StatefulWidget> createState() => _ChatListItemState();
 }
 
-class _CellState extends State<Cell> with WidgetsBindingObserver {
-  static const double gravity = 9.81;
+class _ChatListItemState extends State<ChatListItem> with WidgetsBindingObserver {
 
   int cellNumber = 0;
   AppLifecycleState? appLifecycleState;
@@ -234,6 +270,21 @@ class _CellState extends State<Cell> with WidgetsBindingObserver {
     return Colors.white; //const Color(0xffff0000);
   }
 
+  String _chatNameAbbreviation() {
+    final chatContactName = widget.chatContactName.toUpperCase();
+
+    List<String> chatNameParts = chatContactName.split(" ");
+    if (chatNameParts.length > 1) {
+      return "${chatNameParts[0][0]}${chatNameParts[1][0]}";
+    } else if (chatNameParts.length == 1 && chatNameParts[0].length > 1) {
+      return "${chatNameParts[0][0]}${chatNameParts[0][1]}";
+    } else if (chatNameParts.length == 1 && chatNameParts[0].isNotEmpty) {
+      return chatNameParts[0][0];
+    }
+
+    return "NN";
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -244,93 +295,71 @@ class _CellState extends State<Cell> with WidgetsBindingObserver {
         color: Colors.white,
         child: Builder(
           builder: (context) {
-            return Card(
-              // Mimic the platform Material look.
-              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              elevation: 16,
-              color: randomLightColor(),
-              child: Stack(
-                children: [
-                  Row(
-                    children: [
+            return GestureDetector(
+              onTap: () => widget.clickCallback(widget.chatIndex),
+              child: Card(
+                // Mimic the platform Material look.
+                margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                elevation: 16,
+                color: randomLightColor(),
+                child: Stack(
+                  children: [
+                    Row(
+                      children: [
 
-                      Container(
-                        alignment: Alignment.center,
-                        width: 80,
-                        height: 80,
-                        child: Card(
-                          color: Colors.purpleAccent,
-                          semanticContainer: true,
-                          clipBehavior: Clip.antiAliasWithSaveLayer,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(40.0),
-                          ),
-                          elevation: 5,
-                          margin: const EdgeInsets.all(10),
-                          child: const Center(
-                            child: Text(
-                              // Show a number provided by the platform based on
-                              // the cell's index.
-                              "TT",
-                              style: TextStyle(
-                                  color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20
-                              ),
+                        Container(
+                          alignment: Alignment.center,
+                          width: 80,
+                          height: 80,
+                          child: Card(
+                            color: widget.chatAvatarColor,
+                            semanticContainer: true,
+                            clipBehavior: Clip.antiAliasWithSaveLayer,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(40.0),
                             ),
-                          ),
-                        ),
-                      )
-
-
-                      /*Card(
-                        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20)
-                        ),
-                        elevation: 10,
-                        color: Colors.purpleAccent,
-                        child: const Stack(
-                          children: [
-                            Center(
-                              widthFactor: 2,
-                              heightFactor: 2,
+                            elevation: 5,
+                            margin: const EdgeInsets.all(10),
+                            child: Center(
                               child: Text(
                                 // Show a number provided by the platform based on
                                 // the cell's index.
-                                "TT",
-                                style: TextStyle(
-                                    color: Colors.greenAccent, fontStyle: FontStyle.italic),
+                                _chatNameAbbreviation(),
+                                style: const TextStyle(
+                                    color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20
+                                ),
                               ),
-                            )
-                          ],
-                        ),
-                      )*/,
-
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          Text(
-                            // Show a number provided by the platform based on
-                            // the cell's index.
-                            "Test",
-                            style: Theme.of(context).textTheme.displayMedium,
-                          ),
-                          const Text(
-                            // Show a number provided by the platform based on
-                            // the cell's index.
-                            "Today",
-                            style: TextStyle(
-                                color: Colors.grey, fontSize: 16
                             ),
                           ),
-                        ],
-                      )
-                    ],
-                  )
-                ],
+                        ),
+
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: [
+                            Text(
+                              // Show a number provided by the platform based on
+                              // the cell's index.
+                              widget.chatContactName,
+                              style: Theme.of(context).textTheme.displayMedium,
+                            ),
+                            const Text(
+                              // Show a number provided by the platform based on
+                              // the cell's index.
+                              "Today",
+                              style: TextStyle(
+                                  color: Colors.grey, fontSize: 16
+                              ),
+                            ),
+                          ],
+                        )
+                      ],
+                    )
+                  ],
+                ),
               ),
             );
           },

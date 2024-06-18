@@ -1,9 +1,15 @@
+import 'dart:collection';
+
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'dart:math' as math;
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+import 'package:cloud_firestore/cloud_firestore.dart';
+// https://github.com/firebase/flutterfire/issues/10140
+// throw UnsupportedError('Unknown LoadBundleTaskState value: $state.');
+
+class ChatHomeScreen extends StatefulWidget {
+  const ChatHomeScreen({super.key, required this.title});
 
   // This widget is the home page of your application. It is stateful, meaning
   // that it has a State object (defined below) that contains fields that affect
@@ -17,26 +23,79 @@ class MyHomePage extends StatefulWidget {
   final String title;
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<ChatHomeScreen> createState() => _ChatHomeState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _ChatHomeState extends State<ChatHomeScreen> {
   int _counter = 0;
+  List<(String, int)> _chats = [];
 
   final TextEditingController _chatNameController = TextEditingController();
 
   final Color _toastBackgroundColor = const Color(0xff2b2b2b);
   final Color _toastTextColor = const Color(0xffffffff);
 
-  void appendNewChat(String chatContact) {
+  _ChatHomeState() {
+    _fetchChats();
+  }
+
+  void _fetchChats() {
+    CollectionReference chats = FirebaseFirestore.instance.collection('chats');
+
+    //setState(() {
+      _chats.clear();
+    //});
+
+    chats.get().then((QuerySnapshot snapshot) {
+      snapshot.docs.forEach((doc) {
+        print(doc.data());
+        final chatName = doc.get("name");
+        final chatAvatarColor = doc.get("avatar_color");
+        print(chatName);
+
+        //final data = doc.;
+        //if (data != null) {
+
+
+          //int chatAvatarColor = 0;
+
+          setState(() {
+            _chats.add((chatName, chatAvatarColor));
+          });
+        //}
+      });
+    }).catchError((error) => {
+      _showToast("Ошибка запроса чатов: $error")
+    });
+  }
+
+  void _showToast(String message) {
     Fluttertoast.showToast(
-        msg: "Adding $chatContact",
+        msg: message,
         toastLength: Toast.LENGTH_LONG,
         gravity: ToastGravity.BOTTOM,
         // Also possible "TOP" and "CENTER"
         backgroundColor: _toastBackgroundColor,
         textColor: _toastTextColor
     );
+  }
+
+  void _appendNewChat(String chatContact) {
+    CollectionReference chats = FirebaseFirestore.instance.collection('chats');
+
+    List<Map<String, String>> chatMessages = [{"timestamp": "123"}];
+
+    chats.add({
+      'name': chatContact,
+      'avatar_color': _randomChatAvatarColor(),
+      'messages': chatMessages
+    }).then((value) => {
+      _chatNameController.text = "",
+      _showToast("Чат с $chatContact успешно добавлен"),
+      _fetchChats()
+    }).catchError((error) => {
+      _showToast("Ошибка добавления чата: $error")
+    });
   }
 
   void showAppendChatAlert() {
@@ -89,8 +148,12 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  Color _randomChatAvatarColor() {
+  /*Color _randomChatAvatarColor() {
     return Color((math.Random().nextDouble() * 0xFFFFFF).toInt()).withOpacity(1.0);
+  }*/
+
+  int _randomChatAvatarColor() {
+    return (math.Random().nextDouble() * 0xFFFFFF).toInt();
   }
   
   void _chatItemClick(int chatIndex) {
@@ -107,17 +170,15 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
 
-    List<Widget> chatWidgets = [
+    List<Widget> chatWidgets = [];
 
-    ];
-
-    for (int i = 0; i < 20; i++) {
-      Color chatAvatarColor = _randomChatAvatarColor();
+    for (int i = 0; i < _chats.length; i++) {
+      Color chatAvatarColor = Color(_chats[i].$2).withOpacity(1.0);
 
       chatWidgets.add(
-          ChatListItem(
+          _ChatListItem(
             chatIndex: i,
-            chatContactName: "Test Chat ${i + 1}",
+            chatContactName: _chats[i].$1,
             chatAvatarColor: chatAvatarColor,
             clickCallback: _chatItemClick,
           )
@@ -201,7 +262,7 @@ class _MyHomePageState extends State<MyHomePage> {
               TextButton(
                 child: const Text('Добавить'),
                 onPressed: () {
-                  appendNewChat(_chatNameController.text);
+                  _appendNewChat(_chatNameController.text);
                   Navigator.pop(context);
                   //Navigator.pop(context, _textController.text);
                 },
@@ -224,8 +285,8 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
-class ChatListItem extends StatefulWidget {
-  const ChatListItem({
+class _ChatListItem extends StatefulWidget {
+  const _ChatListItem({
     super.key,
     required this.chatIndex, required this.chatContactName,
     required this.chatAvatarColor, required this.clickCallback
@@ -240,7 +301,7 @@ class ChatListItem extends StatefulWidget {
   State<StatefulWidget> createState() => _ChatListItemState();
 }
 
-class _ChatListItemState extends State<ChatListItem> with WidgetsBindingObserver {
+class _ChatListItemState extends State<_ChatListItem> with WidgetsBindingObserver {
 
   int cellNumber = 0;
   AppLifecycleState? appLifecycleState;

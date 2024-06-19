@@ -1,12 +1,12 @@
-import 'dart:collection';
-
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'dart:math' as math;
 
+import 'chat.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
-// https://github.com/firebase/flutterfire/issues/10140
-// throw UnsupportedError('Unknown LoadBundleTaskState value: $state.');
+import 'package:intl/intl.dart';
+
+import 'dart:async';
 
 class ChatHomeScreen extends StatefulWidget {
   const ChatHomeScreen({super.key, required this.title});
@@ -27,63 +27,75 @@ class ChatHomeScreen extends StatefulWidget {
 }
 
 class _ChatHomeState extends State<ChatHomeScreen> {
-  int _counter = 0;
-  List<(String, int)> _chats = [];
+
+  var _homeScreenPresentedState = false;
+
+  late Timer _lifecycleTimer;
+
+  final List<(String, int, String, int?)> _chats = [];
 
   final TextEditingController _chatNameController = TextEditingController();
 
-  final Color _toastBackgroundColor = const Color(0xff2b2b2b);
-  final Color _toastTextColor = const Color(0xffffffff);
+  @override
+  void initState() {
+    super.initState();
 
-  _ChatHomeState() {
-    _fetchChats();
+    const oneSec = Duration(seconds: 1);
+    _lifecycleTimer = Timer.periodic(oneSec, (Timer t) {
+      _handleStateChange();
+    });
+  }
+
+  void _handleStateChange() {
+    final isTopOfNavigationStack = ModalRoute.of(context)?.isCurrent ?? false;
+
+    if (_homeScreenPresentedState != isTopOfNavigationStack) {
+      _homeScreenPresentedState = isTopOfNavigationStack;
+
+      if (isTopOfNavigationStack) {
+        _fetchChats();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _lifecycleTimer.cancel();
+    super.dispose();
   }
 
   void _fetchChats() {
     CollectionReference chats = FirebaseFirestore.instance.collection('chats');
 
-    //setState(() {
+    setState(() {
       _chats.clear();
-    //});
+    });
 
     chats.get().then((QuerySnapshot snapshot) {
       snapshot.docs.forEach((doc) {
-        print(doc.data());
         final chatName = doc.get("name");
         final chatAvatarColor = doc.get("avatar_color");
-        print(chatName);
+        final chatMessages = doc.get("messages");
 
-        //final data = doc.;
-        //if (data != null) {
-
-
-          //int chatAvatarColor = 0;
-
-          setState(() {
-            _chats.add((chatName, chatAvatarColor));
-          });
-        //}
+        setState(() {
+          if (chatMessages.length > 0) {
+            _chats.add(
+                (chatName, chatAvatarColor, "${chatMessages[chatMessages.length - 1]["is_outgoing"] ? "Вы: " : ""}${chatMessages[chatMessages.length - 1]["message"]}", chatMessages[chatMessages.length - 1]["timestamp"])
+            );
+          } else {
+            _chats.add((chatName, chatAvatarColor, "", null));
+          }
+        });
       });
     }).catchError((error) => {
-      _showToast("Ошибка запроса чатов: $error")
+      showToast("Ошибка запроса чатов: $error")
     });
-  }
-
-  void _showToast(String message) {
-    Fluttertoast.showToast(
-        msg: message,
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-        // Also possible "TOP" and "CENTER"
-        backgroundColor: _toastBackgroundColor,
-        textColor: _toastTextColor
-    );
   }
 
   void _appendNewChat(String chatContact) {
     CollectionReference chats = FirebaseFirestore.instance.collection('chats');
 
-    List<Map<String, String>> chatMessages = [{"timestamp": "123"}];
+    List<Map<String, Object>> chatMessages = [];
 
     chats.add({
       'name': chatContact,
@@ -91,80 +103,49 @@ class _ChatHomeState extends State<ChatHomeScreen> {
       'messages': chatMessages
     }).then((value) => {
       _chatNameController.text = "",
-      _showToast("Чат с $chatContact успешно добавлен"),
-      _fetchChats()
+      showToast("Чат с $chatContact успешно добавлен"),
+      _homeScreenPresentedState = false
+      //_fetchChats()
     }).catchError((error) => {
-      _showToast("Ошибка добавления чата: $error")
+      showToast("Ошибка добавления чата: $error")
     });
   }
-
-  void showAppendChatAlert() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-
-    AlertDialog(
-      title: const Text('Add a new class'),
-      content: const TextField(
-        //controller: textController,
-        autofocus: true,
-        decoration: InputDecoration(
-            hintText: "Enter the name of the class."),
-      ),
-      actions: [
-        TextButton(
-          child: const Text('Cancel'),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
-        TextButton(
-          child: const Text('Add'),
-          onPressed: () {
-            setState((){
-              //_items.add(textController.text)  // 👈 add list item to the list
-            });
-            Navigator.pop(context);
-            //Navigator.pop(context, textController.text);
-          },
-        ),
-      ],
-    );
-  }
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
-
-  /*Color _randomChatAvatarColor() {
-    return Color((math.Random().nextDouble() * 0xFFFFFF).toInt()).withOpacity(1.0);
-  }*/
 
   int _randomChatAvatarColor() {
     return (math.Random().nextDouble() * 0xFFFFFF).toInt();
   }
   
   void _chatItemClick(int chatIndex) {
-    Fluttertoast.showToast(
-        msg: "Selected chat $chatIndex",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-        // Also possible "TOP" and "CENTER"
-        backgroundColor: _toastBackgroundColor,
-        textColor: _toastTextColor
+    String chatName = _chats[chatIndex].$1;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatScreen(title: chatName, chatIndex: chatIndex),
+      ),
     );
+  }
+
+  void _deleteChat(int chatIndex) {
+    CollectionReference chats = FirebaseFirestore.instance.collection('chats');
+
+    chats.get().then((QuerySnapshot snapshot) {
+      final selectedChat = snapshot.docs[chatIndex];
+
+      var collection = FirebaseFirestore.instance.collection('chats');
+
+      collection
+          .doc(selectedChat.id)
+          .delete()
+          .then((value) => {
+        _homeScreenPresentedState = false
+        //_fetchChats()
+      }).catchError((error) => {
+        showToast("Ошибка удаления чата: $error")
+      });
+    }).catchError((error) => {
+      showToast("Ошибка запроса чата: $error")
+    });
   }
 
   @override
@@ -179,8 +160,11 @@ class _ChatHomeState extends State<ChatHomeScreen> {
           _ChatListItem(
             chatIndex: i,
             chatContactName: _chats[i].$1,
+            chatPreviewMessage: _chats[i].$3,
+            chatTimestamp: _chats[i].$4,
             chatAvatarColor: chatAvatarColor,
             clickCallback: _chatItemClick,
+            chatDeleteCallback: _deleteChat,
           )
       );
     }
@@ -241,43 +225,37 @@ class _ChatHomeState extends State<ChatHomeScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-      final result = await showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: const Text('Новый чат'),
-            content: TextField(
-              controller: _chatNameController,
-              autofocus: true,
-              decoration: const InputDecoration(
-                  hintText: "Введите имя контакта"),
-            ),
-            actions: [
-              TextButton(
-                child: const Text('Отмена'),
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-              ),
-              TextButton(
-                child: const Text('Добавить'),
-                onPressed: () {
-                  _appendNewChat(_chatNameController.text);
-                  Navigator.pop(context);
-                  //Navigator.pop(context, _textController.text);
-                },
-              ),
-            ],
+          final result = await showDialog(
+            context: context,
+            builder: (context) {
+              return AlertDialog(
+                title: const Text('Новый чат'),
+                content: TextField(
+                  controller: _chatNameController,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                      hintText: "Введите имя контакта"),
+                ),
+                actions: [
+                  TextButton(
+                    child: const Text('Отмена'),
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                  ),
+                  TextButton(
+                    child: const Text('Добавить'),
+                    onPressed: () {
+                      _appendNewChat(_chatNameController.text);
+                      Navigator.pop(context);
+                      //Navigator.pop(context, _textController.text);
+                    },
+                  ),
+                ],
+              );
+            },
           );
-        },
-      );
-      if (result != null) {
-        result as String;
-        setState(() {
-          //_items.add(result);
-        });
-      }
-      }, //_incrementCounter,
+        }, //_incrementCounter,
         tooltip: 'Increment',
         child: const Icon(Icons.add),
       ), // This trailing comma makes auto-formatting nicer for build methods.
@@ -289,47 +267,23 @@ class _ChatListItem extends StatefulWidget {
   const _ChatListItem({
     super.key,
     required this.chatIndex, required this.chatContactName,
-    required this.chatAvatarColor, required this.clickCallback
+    required this.chatPreviewMessage, this.chatTimestamp,
+    required this.chatAvatarColor,
+    required this.clickCallback, required this.chatDeleteCallback
   });
 
   final int chatIndex;
-  final String chatContactName;
+  final String chatContactName, chatPreviewMessage;
+  final int? chatTimestamp;
   final Color chatAvatarColor;
   final void Function(int) clickCallback;
+  final void Function(int) chatDeleteCallback;
 
   @override
   State<StatefulWidget> createState() => _ChatListItemState();
 }
 
-class _ChatListItemState extends State<_ChatListItem> with WidgetsBindingObserver {
-
-  int cellNumber = 0;
-  AppLifecycleState? appLifecycleState;
-
-  @override
-  void initState() {
-    // Keep track of what the current platform lifecycle state is.
-    WidgetsBinding.instance.addObserver(this);
-    super.initState();
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    setState(() {
-      appLifecycleState = state;
-    });
-  }
-
-  // Show a random bright color.
-  Color randomLightColor() {
-    return Colors.white; //const Color(0xffff0000);
-  }
+class _ChatListItemState extends State<_ChatListItem> {
 
   String _chatNameAbbreviation() {
     final chatContactName = widget.chatContactName.toUpperCase();
@@ -348,6 +302,10 @@ class _ChatListItemState extends State<_ChatListItem> with WidgetsBindingObserve
 
   @override
   Widget build(BuildContext context) {
+
+    final chatTimestamp = widget.chatTimestamp;
+    String chatDateTime = chatTimestamp != null ? DateFormat('dd.MM.yyyy').format(DateTime.fromMicrosecondsSinceEpoch(chatTimestamp * 1000)) : "";
+
     return MaterialApp(
       // The Flutter cells will be noticeably different (due to background color
       // and the Flutter logo). The banner breaks immersion.
@@ -357,6 +315,32 @@ class _ChatListItemState extends State<_ChatListItem> with WidgetsBindingObserve
         child: Builder(
           builder: (context) {
             return GestureDetector(
+              onLongPress: () async {
+                final result = await showDialog(
+                  context: context,
+                  builder: (context) {
+                    return AlertDialog(
+                      title: const Text('Подтверждение удаления'),
+                      content: const Text('Вы действительно хотите удалить этот чат?'),
+                      actions: [
+                        TextButton(
+                          child: const Text('Отмена'),
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                        ),
+                        TextButton(
+                          child: const Text('Удалить'),
+                          onPressed: () {
+                            widget.chatDeleteCallback(widget.chatIndex);
+                            Navigator.pop(context);
+                          },
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
               onTap: () => widget.clickCallback(widget.chatIndex),
               child: Card(
                 // Mimic the platform Material look.
@@ -365,12 +349,11 @@ class _ChatListItemState extends State<_ChatListItem> with WidgetsBindingObserve
                   borderRadius: BorderRadius.circular(10),
                 ),
                 elevation: 16,
-                color: randomLightColor(),
+                color: Colors.white,
                 child: Stack(
                   children: [
                     Row(
                       children: [
-
                         Container(
                           alignment: Alignment.center,
                           width: 80,
@@ -386,8 +369,6 @@ class _ChatListItemState extends State<_ChatListItem> with WidgetsBindingObserve
                             margin: const EdgeInsets.all(10),
                             child: Center(
                               child: Text(
-                                // Show a number provided by the platform based on
-                                // the cell's index.
                                 _chatNameAbbreviation(),
                                 style: const TextStyle(
                                     color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20
@@ -397,29 +378,53 @@ class _ChatListItemState extends State<_ChatListItem> with WidgetsBindingObserve
                           ),
                         ),
 
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          children: [
-                            Text(
-                              // Show a number provided by the platform based on
-                              // the cell's index.
-                              widget.chatContactName,
-                              style: Theme.of(context).textTheme.displayMedium,
-                            ),
-                            const Text(
-                              // Show a number provided by the platform based on
-                              // the cell's index.
-                              "Today",
-                              style: TextStyle(
-                                  color: Colors.grey, fontSize: 16
-                              ),
-                            ),
+                        Expanded(
+                            flex: 2,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              children: [
+                                Text(
+                                  widget.chatContactName,
+                                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                                ),
+                                Text(
+                                  widget.chatPreviewMessage,
+                                  style: const TextStyle(
+                                      color: Colors.grey, fontSize: 16
+                                  ),
+                                ),
+                              ],
+                            )
+                        ),
+
+                        Expanded(
+                            flex: 2,
+                            child: Container(
+                                margin: const EdgeInsets.only(right: 10),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      chatDateTime,
+                                      style: const TextStyle(
+                                          color: Colors.grey, fontSize: 16
+                                      ),
+                                    ),
+                                    const Text(
+                                      "",
+                                      style: TextStyle(
+                                          color: Colors.grey, fontSize: 16
+                                      ),
+                                    )
+                                  ],
+                                )
+                              )
+                            )
                           ],
                         )
                       ],
-                    )
-                  ],
                 ),
               ),
             );
